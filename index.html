@@ -559,6 +559,109 @@ footer {
   font-family: var(--mono); font-size: 9px; letter-spacing: .1em;
   color: var(--muted);
 }
+
+/* ─── DECISION TREE ENGINE ─────────────────────────────────────── */
+.dt-header-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: .75rem;
+}
+.dt-collapse-btn {
+  background: none; border: 1px solid var(--border);
+  color: var(--muted); font-family: var(--mono); font-size: 9px;
+  letter-spacing: .1em; padding: 2px 8px; cursor: pointer;
+  transition: all .2s;
+}
+.dt-collapse-btn:hover { border-color: var(--red); color: var(--red); }
+
+.dt-tabs {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 2px; margin-bottom: .75rem;
+}
+.dt-tab {
+  background: var(--bg3); border: 1px solid var(--border);
+  color: var(--muted); font-family: var(--mono); font-size: 8px;
+  letter-spacing: .08em; text-transform: uppercase;
+  padding: 5px 2px; cursor: pointer;
+  transition: all .18s; text-align: center;
+}
+.dt-tab:hover { border-color: var(--border2); color: var(--white); }
+.dt-tab.active {
+  background: var(--red); border-color: var(--red);
+  color: #fff; box-shadow: 0 0 10px var(--red-dim);
+}
+
+.dt-vuln-title {
+  font-family: var(--display); font-size: 1.1rem;
+  letter-spacing: .08em; text-transform: uppercase;
+  color: var(--white); margin-bottom: .5rem;
+  display: flex; align-items: center; gap: .4rem;
+}
+.dt-vuln-title span { color: var(--red); }
+
+.dt-scenario {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-left: 2px solid var(--border2);
+  padding: .65rem .75rem; margin-bottom: .4rem;
+  cursor: pointer; transition: all .2s;
+  position: relative;
+}
+.dt-scenario:hover {
+  border-left-color: var(--red);
+  background: #2e2e30;
+}
+.dt-scenario.dt-selected {
+  border-left-color: var(--red);
+  background: var(--red-dim);
+}
+.dt-sc-top {
+  display: flex; align-items: center;
+  justify-content: space-between; gap: .4rem;
+  margin-bottom: .3rem;
+}
+.dt-sc-name {
+  font-family: var(--sans); font-weight: 700;
+  font-size: 11px; text-transform: uppercase;
+  letter-spacing: .03em; flex: 1;
+}
+.dt-sev-badge {
+  font-family: var(--mono); font-size: 8px;
+  letter-spacing: .1em; padding: 2px 6px;
+  border: 1px solid; white-space: nowrap;
+  flex-shrink: 0;
+}
+.dt-sc-desc {
+  font-family: var(--mono); font-size: 9px;
+  color: var(--muted); line-height: 1.5;
+  margin-bottom: .4rem;
+}
+.dt-sc-vec {
+  font-family: var(--mono); font-size: 8px;
+  color: var(--muted2); letter-spacing: .02em;
+  word-break: break-all; margin-bottom: .5rem;
+}
+.dt-load-btn {
+  width: 100%; background: transparent;
+  border: 1px solid var(--border2);
+  color: var(--muted); font-family: var(--mono);
+  font-size: 8px; letter-spacing: .14em;
+  text-transform: uppercase; padding: 5px;
+  cursor: pointer; transition: all .2s;
+}
+.dt-load-btn:hover {
+  background: var(--red); border-color: var(--red);
+  color: #fff; box-shadow: 0 0 8px var(--red-glow);
+}
+
+.dt-body { overflow: hidden; transition: max-height .35s ease; }
+.dt-body.collapsed { max-height: 0 !important; }
+
+.dt-info-strip {
+  font-family: var(--mono); font-size: 8.5px;
+  color: var(--muted2); line-height: 1.5;
+  border-top: 1px solid var(--border);
+  padding-top: .5rem; margin-top: .25rem;
+}
+.dt-info-strip strong { color: var(--red); }
 </style>
 </head>
 <body>
@@ -888,6 +991,36 @@ footer {
 
 
 <div id="sidebar">
+
+<!-- ─── DECISION TREE ENGINE ──────────────────────────────────── -->
+<div class="side-panel" style="border-top:2px solid var(--red);padding-bottom:1rem" id="dt-panel">
+
+  <div class="dt-header-row">
+    <div class="side-label" style="margin-bottom:0">⬡ Vuln Decision Tree</div>
+    <button class="dt-collapse-btn" id="dt-toggle-btn">▲ Collapse</button>
+  </div>
+
+  <div class="dt-body" id="dt-body">
+
+    <!-- Vuln Tabs -->
+    <div class="dt-tabs" id="dt-tabs">
+      <button class="dt-tab active" data-vuln="CSRF">CSRF</button>
+      <button class="dt-tab" data-vuln="XSS">XSS</button>
+      <button class="dt-tab" data-vuln="CORS">CORS</button>
+      <button class="dt-tab" data-vuln="IDOR">IDOR</button>
+      <button class="dt-tab" data-vuln="BIZ">BizLogic</button>
+      <button class="dt-tab" data-vuln="SSRF">SSRF</button>
+      <button class="dt-tab" data-vuln="SQLI">SQLi</button>
+    </div>
+
+    <!-- Scenario Container -->
+    <div id="dt-scenarios"></div>
+
+    <div class="dt-info-strip">
+      <strong>HOW TO USE:</strong> Select a vuln type → pick your scenario → click <strong>Load Vector →</strong> to auto-fill the CVSS calculator.
+    </div>
+  </div>
+</div>
 
 
   <div class="side-panel" style="border-top:2px solid var(--red)">
@@ -1442,6 +1575,392 @@ gsap.utils.toArray('.metric-card, .preset-section').forEach((el, i) => {
 gsap.from('#sidebar > *', {
   opacity:0, x:12, stagger:.08, duration:.5, ease:'power2.out', delay:.15
 });
+
+/* ─────────────────────────────────────────────────────────────────
+   DECISION TREE ENGINE — Bug Bounty Vuln Classifier
+   ──────────────────────────────────────────────────────────────── */
+const DT_DATA = {
+
+  CSRF: {
+    label: 'Cross-Site Request Forgery',
+    icon: '⟳',
+    scenarios: [
+      {
+        id: 'csrf-critical',
+        tier: 'P1',
+        sev: 'CRITICAL',
+        score: '9.3',
+        color: '#e8000b',
+        name: 'Full Account Takeover',
+        desc: 'Forged request changes victim\'s email/password or hijacks session entirely — attacker gains full control.',
+        vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H'
+      },
+      {
+        id: 'csrf-high',
+        tier: 'P2',
+        sev: 'HIGH',
+        score: '8.1',
+        color: '#ff7043',
+        name: 'Sensitive Action Forgery',
+        desc: 'Forces victim to add/delete data (shipping address, files, payment method) — significant I+A impact.',
+        vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:H'
+      },
+      {
+        id: 'csrf-medium',
+        tier: 'P3',
+        sev: 'MEDIUM',
+        score: '4.3',
+        color: '#ffca28',
+        name: 'State / Privacy Change',
+        desc: 'Toggles account from Private to Public, or changes non-critical settings that expose metadata.',
+        vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N'
+      },
+      {
+        id: 'csrf-low',
+        tier: 'P4/P5',
+        sev: 'LOW - INFO',
+        score: '0 - 3.5',
+        color: '#69f0ae',
+        name: 'Logout / Non-Sensitive',
+        desc: 'Logout CSRF or cosmetic change (dark mode toggle). No real impact. OOS in many programs.',
+        vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:N/A:L'
+      }
+    ]
+  },
+
+  XSS: {
+    label: 'Cross-Site Scripting',
+    icon: '</≥',
+    scenarios: [
+      {
+        id: 'xss-critical',
+        tier: 'P1',
+        sev: 'CRITICAL',
+        score: '10.0',
+        color: '#e8000b',
+        name: 'Admin Context + Cookie Steal',
+        desc: 'Stored XSS in admin panel. Payload exfiltrates session_cookie to attacker C2. Full platform takeover.',
+        vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:H/I:H/A:H'
+      },
+      {
+        id: 'xss-high',
+        tier: 'P2',
+        sev: 'HIGH',
+        score: '8.2',
+        color: '#ff7043',
+        name: 'Stored XSS — Account Takeover',
+        desc: 'Stored XSS in user profile. Payload swaps victim email or steals CSRF token to reset password.',
+        vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:N'
+      },
+      {
+        id: 'xss-medium',
+        tier: 'P3',
+        sev: 'MEDIUM',
+        score: '4.3',
+        color: '#ffca28',
+        name: 'Reflected XSS / Phishing',
+        desc: 'Reflected XSS in search bar. Payload redirects victim to a phishing clone or overlays a fake login form.',
+        vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N'
+      },
+      {
+        id: 'xss-info',
+        tier: 'P5',
+        sev: 'INFORMATIONAL',
+        score: '0.0',
+        color: '#888888',
+        name: 'Self-XSS / No Sensitive Context',
+        desc: 'User must inject payload themselves. No cookies, no sensitive data. Chainable but alone = 0 impact.',
+        vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:N/A:N'
+      }
+    ]
+  },
+
+  CORS: {
+    label: 'CORS Misconfiguration',
+    icon: '✕⬡',
+    scenarios: [
+      {
+        id: 'cors-high',
+        tier: 'P2',
+        sev: 'HIGH',
+        score: '7.4',
+        color: '#ff7043',
+        name: 'Credentials + Sensitive Data Leak',
+        desc: 'Allow-Origin: attacker.com + Credentials:true. Reads private API keys, PII, or auth tokens of logged-in users.',
+        vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:N/A:N'
+      },
+      {
+        id: 'cors-medium',
+        tier: 'P3',
+        sev: 'MEDIUM',
+        score: '4.3',
+        color: '#ffca28',
+        name: 'Partial Information Leak',
+        desc: 'Same CORS config but endpoint only returns non-critical data (username, registration date, public settings).',
+        vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:N/A:N'
+      },
+      {
+        id: 'cors-info',
+        tier: 'P5',
+        sev: 'INFORMATIONAL',
+        score: '0.0',
+        color: '#888888',
+        name: 'Wildcard — No Credentials',
+        desc: 'Allow-Origin: * without Allow-Credentials. Browser blocks cookies. Only public data accessible. No real impact.',
+        vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N'
+      }
+    ]
+  },
+
+  IDOR: {
+    label: 'Insecure Direct Object Ref.',
+    icon: '⊘',
+    scenarios: [
+      {
+        id: 'idor-critical',
+        tier: 'P1',
+        sev: 'CRITICAL',
+        score: '8.8',
+        color: '#e8000b',
+        name: 'Mass PII Leak / Full Account Access',
+        desc: 'Enumerate user_id to read/write PII (email, phone, address) for ALL users, or change any password.',
+        vector: 'CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H'
+      },
+      {
+        id: 'idor-high',
+        tier: 'P2',
+        sev: 'HIGH',
+        score: '6.5',
+        color: '#ff7043',
+        name: 'Sensitive Functionality Access',
+        desc: 'Access other users invoices or support tickets containing financial/private data. Read-only, no modification.',
+        vector: 'CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N'
+      },
+      {
+        id: 'idor-medium',
+        tier: 'P3',
+        sev: 'MEDIUM',
+        score: '4.3',
+        color: '#ffca28',
+        name: 'Limited Data Leak',
+        desc: 'View another user wishlist or semi-public profile that should be private. Minor privacy breach.',
+        vector: 'CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N'
+      },
+      {
+        id: 'idor-info',
+        tier: 'P5',
+        sev: 'INFORMATIONAL',
+        score: '0.0',
+        color: '#888888',
+        name: 'Non-Sensitive Public IDs',
+        desc: 'Changed ID reveals a public blog post. Data was already accessible to everyone. Zero real impact.',
+        vector: 'CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:N'
+      }
+    ]
+  },
+
+  BIZ: {
+    label: 'Business Logic Flaws',
+    icon: '⟐',
+    scenarios: [
+      {
+        id: 'biz-critical',
+        tier: 'P1',
+        sev: 'CRITICAL',
+        score: '9.1',
+        color: '#e8000b',
+        name: 'Price / Negative Amount Manipulation',
+        desc: 'Set item price to -100 or quantity to negative. Server adds credit to attacker balance instead of charging.',
+        vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H'
+      },
+      {
+        id: 'biz-high',
+        tier: 'P2',
+        sev: 'HIGH',
+        score: '8.2',
+        color: '#ff7043',
+        name: 'Workflow Bypass / Free Premium',
+        desc: 'Skip payment page and hit Success.html directly. Server grants premium access without charge validation.',
+        vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:L/A:N'
+      },
+      {
+        id: 'biz-medium',
+        tier: 'P3',
+        sev: 'MEDIUM',
+        score: '4.3',
+        color: '#ffca28',
+        name: 'Coupon / Reward Reuse',
+        desc: 'Replay a coupon code multiple times or exploit Race Condition to duplicate loyalty points from another account.',
+        vector: 'CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:L/A:N'
+      },
+      {
+        id: 'biz-low',
+        tier: 'P4',
+        sev: 'LOW',
+        score: '3.5',
+        color: '#69f0ae',
+        name: 'Limit Circumvention',
+        desc: 'Bypass 3-messages-per-day cap by spoofing timezone in request or deleting the rate-limit cookie client-side.',
+        vector: 'CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:L'
+      }
+    ]
+  },
+
+  SSRF: {
+    label: 'Server-Side Request Forgery',
+    icon: '🛰',
+    scenarios: [
+      {
+        id: 'ssrf-critical',
+        tier: 'P1',
+        sev: 'CRITICAL',
+        score: '10.0',
+        color: '#e8000b',
+        name: 'Cloud Metadata (IAM / AWS Keys)',
+        desc: 'Server fetches 169.254.169.254/latest/meta-data/. Attacker reads IAM Roles + AWS Keys — full cloud environment compromise. Scope: Changed.',
+        vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H'
+      },
+      {
+        id: 'ssrf-high',
+        tier: 'P2',
+        sev: 'HIGH',
+        score: '8.2',
+        color: '#ff7043',
+        name: 'Internal Network Spy',
+        desc: 'Pivots to internal Redis, Memcached, or internal admin panel. Reads sensitive internal service data not exposed publicly.',
+        vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:L/A:N'
+      },
+      {
+        id: 'ssrf-medium',
+        tier: 'P3/P4',
+        sev: 'MEDIUM / LOW',
+        score: '5.3',
+        color: '#ffca28',
+        name: 'Blind SSRF (Out-of-Band)',
+        desc: 'Server sends DNS/HTTP ping to attacker Burp Collaborator — response body not visible. Confirmed OOB interaction, no data exfil yet.',
+        vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N'
+      }
+    ]
+  },
+
+  SQLI: {
+    label: 'SQL Injection',
+    icon: '💉',
+    scenarios: [
+      {
+        id: 'sqli-critical',
+        tier: 'P1',
+        sev: 'CRITICAL',
+        score: '9.8',
+        color: '#e8000b',
+        name: 'Full Database Dump',
+        desc: 'UNION or Error-based SQLi extracts all tables — emails, hashed passwords, financial data, PII. Full Confidentiality + Integrity loss.',
+        vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H'
+      },
+      {
+        id: 'sqli-high',
+        tier: 'P2',
+        sev: 'HIGH',
+        score: '9.1',
+        color: '#ff7043',
+        name: 'Authentication Bypass',
+        desc: 'Classic OR 1=1 -- skips login and grants admin session. No password needed — full account takeover of privileged user.',
+        vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N'
+      },
+      {
+        id: 'sqli-blind',
+        tier: 'P2',
+        sev: 'HIGH',
+        score: '5.9',
+        color: '#ff9800',
+        name: 'Blind SQLi (Time-Based)',
+        desc: 'Data extracted char-by-char via SLEEP() response timing. Higher complexity (AC:H) but full DB still leaks given enough time.',
+        vector: 'CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N'
+      }
+    ]
+  }
+};
+
+let dtCurrentVuln = 'CSRF';
+
+function dtRender() {
+  const data = DT_DATA[dtCurrentVuln];
+  if (!data) return;
+
+  const container = document.getElementById('dt-scenarios');
+  let html = `<div class="dt-vuln-title"><span>${data.icon}</span> ${data.label}</div>`;
+
+  data.scenarios.forEach(sc => {
+    const colorHex = sc.color;
+    const vecSafe  = sc.vector.replace(/'/g, '&#39;');
+    const nameSafe = sc.name.replace(/'/g, '&#39;');
+    html += `
+    <div class="dt-scenario" id="${sc.id}" onclick="dtSelect('${sc.id}','${vecSafe}','${nameSafe}')">
+      <div class="dt-sc-top">
+        <span class="dt-sc-name">${sc.name}</span>
+        <span class="dt-sev-badge" style="color:${colorHex};border-color:${colorHex};background:${colorHex}22">${sc.tier} · ${sc.sev}</span>
+      </div>
+      <div class="dt-sc-desc">${sc.desc}</div>
+      <div class="dt-sc-vec">${sc.vector}</div>
+      <button class="dt-load-btn" onclick="event.stopPropagation();dtLoadVector('${vecSafe}','${nameSafe}')">
+        ↳ Load Vector into Calculator →
+      </button>
+    </div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+function dtSelect(id, vector, name) {
+  document.querySelectorAll('.dt-scenario').forEach(el => el.classList.remove('dt-selected'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('dt-selected');
+}
+
+function dtLoadVector(vector, name) {
+  const parts = vector.split('/');
+  parts.forEach(p => {
+    const [k, v] = p.split(':');
+    if (!k || !v) return;
+    const el = document.querySelector(`input[name="${k}"][value="${v}"]`);
+    if (el) el.checked = true;
+  });
+  updateBadges(); updateUI();
+  document.getElementById('calculator').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  toast('✓ DT Vector loaded: ' + name);
+  gsap.fromTo('#left-col', { opacity: .7 }, { opacity: 1, duration: .4, ease: 'power2.out' });
+}
+
+// Tab switching
+document.getElementById('dt-tabs').addEventListener('click', e => {
+  const btn = e.target.closest('.dt-tab');
+  if (!btn) return;
+  document.querySelectorAll('.dt-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  dtCurrentVuln = btn.dataset.vuln;
+  gsap.fromTo('#dt-scenarios', { opacity: 0, x: 5 }, { opacity: 1, x: 0, duration: .22, ease: 'power2.out' });
+  dtRender();
+});
+
+// Collapse toggle
+let dtCollapsed = false;
+document.getElementById('dt-toggle-btn').addEventListener('click', () => {
+  const body = document.getElementById('dt-body');
+  dtCollapsed = !dtCollapsed;
+  if (dtCollapsed) {
+    body.style.maxHeight = body.scrollHeight + 'px';
+    requestAnimationFrame(() => { body.classList.add('collapsed'); });
+    document.getElementById('dt-toggle-btn').textContent = '▼ Expand';
+  } else {
+    body.classList.remove('collapsed');
+    body.style.maxHeight = body.scrollHeight + 'px';
+    setTimeout(() => { body.style.maxHeight = ''; }, 350);
+    document.getElementById('dt-toggle-btn').textContent = '▲ Collapse';
+  }
+});
+
+dtRender();
+/* ─── END DECISION TREE ENGINE ─────────────────────────────────── */
 
 window.addEventListener('DOMContentLoaded', () => {
   ['E','RL','RC'].forEach(k => { const el=document.querySelector(`input[name="${k}"][value="X"]`); if(el) el.checked=true; });
