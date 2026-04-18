@@ -1,0 +1,1453 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" class="scroll-smooth">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VECTOR // Bug Hunter CVSS Calculator</title>
+<meta name="description" content="Bug Hunter CVSS v3.1 Calculator — OWASP Multi-Year Presets, Bounty Tier Mapping, Base Scoring Engine.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+
+<style>
+
+:root {
+  --bg:         #1c1c1e;
+  --bg2:        #242426;
+  --bg3:        #2c2c2e;
+  --border:     #383838;
+  --border2:    #484848;
+  --red:        #e8000b;
+  --red-dim:    rgba(232,0,11,0.18);
+  --red-glow:   rgba(232,0,11,0.45);
+  --white:      #f2f2f2;
+  --muted:      #888888;
+  --muted2:     #606060;
+  --mono:       'JetBrains Mono', monospace;
+  --sans:       'Space Grotesk', sans-serif;
+  --display:    'Bebas Neue', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--white);
+  font-family: var(--sans);
+  font-size: 14px;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  cursor: default;
+}
+
+::selection { background: var(--red); color: #fff; }
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--red); }
+
+
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px);
+  pointer-events: none; z-index: 9999;
+}
+
+
+#dot-grid {
+  position: fixed; inset: 0;
+  background-image: radial-gradient(rgba(232,0,11,0.06) 1px, transparent 1px);
+  background-size: 32px 32px;
+  pointer-events: none; z-index: 0;
+  animation: gridBreathe 6s ease-in-out infinite;
+}
+@keyframes gridBreathe { 0%,100%{opacity:.4} 50%{opacity:.85} }
+
+
+#main-nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  height: 56px;
+  background: rgba(28,28,30,.96);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(14px);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 2rem;
+}
+.nav-brand {
+  font-family: var(--display);
+  font-size: 1.5rem;
+  letter-spacing: .04em;
+  color: #fff;
+  display: flex; align-items: center; gap: .5rem;
+}
+.nav-brand span { color: var(--red); }
+.nav-brand-sub {
+  font-family: var(--mono); font-size: 8px;
+  letter-spacing: .2em; text-transform: uppercase;
+  color: var(--muted); border: 1px solid var(--border);
+  padding: 2px 7px; margin-left: .4rem;
+}
+.nav-pill {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  border: 1px solid var(--border2);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.nav-links { display: flex; gap: 1.8rem; }
+.nav-links a {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color .2s;
+}
+.nav-links a:hover { color: var(--red); }
+.status-dot {
+  display: inline-block; width: 6px; height: 6px;
+  border-radius: 50%; background: #00e676;
+  box-shadow: 0 0 6px #00e676;
+  margin-right: 6px;
+  animation: pulseDot 2.5s ease-in-out infinite;
+}
+@keyframes pulseDot { 0%,100%{box-shadow:0 0 4px #00e676} 50%{box-shadow:0 0 12px #00e676} }
+@media(max-width:768px) { .nav-links { display:none; } }
+
+
+#app {
+  position: relative; z-index: 1;
+  max-width: 1400px; margin: 0 auto;
+  padding: 72px 1.5rem 6rem;
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 2rem;
+}
+@media(max-width: 1100px) {
+  #app { grid-template-columns: 1fr; }
+  #sidebar { position: static !important; }
+}
+#left-col { min-width: 0; }
+
+
+#sidebar {
+  position: sticky; top: 68px;
+  height: fit-content;
+  display: flex; flex-direction: column; gap: 1rem;
+}
+
+
+.sec-num {
+  font-family: var(--display);
+  font-size: 3rem; color: var(--muted2);
+  line-height: 1; margin-right: .5rem;
+}
+.sec-title {
+  font-family: var(--display);
+  font-size: 1.8rem; letter-spacing: .04em;
+  text-transform: uppercase; color: #fff;
+}
+.sec-head {
+  display: flex; align-items: baseline; gap: .25rem;
+  margin-bottom: 1.25rem;
+}
+.sec-desc {
+  font-size: 12px; color: var(--muted);
+  margin-bottom: 1.5rem; line-height: 1.6;
+  font-family: var(--mono);
+}
+
+
+.metric-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--red);
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  opacity: 1; transform: none;
+  transition: border-left-color .2s;
+}
+.metric-card:hover { border-left-color: var(--red); }
+
+.card-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 1rem; padding-bottom: .75rem;
+  border-bottom: 1px solid var(--border);
+}
+.card-title-row { display: flex; align-items: center; gap: .6rem; }
+.card-title {
+  font-family: var(--display);
+  font-size: 1.4rem; letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.card-badge {
+  font-family: var(--mono);
+  font-size: 9px; letter-spacing: .12em;
+  color: var(--red); background: var(--red-dim);
+  border: 1px solid var(--red);
+  padding: 2px 8px;
+  transition: all .2s;
+}
+
+
+.tip-wrap { position: relative; display: inline-flex; align-items: center; cursor: help; }
+.tip-icon {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 1px solid var(--muted2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 8px; color: var(--muted); transition: all .2s;
+}
+.tip-wrap:hover .tip-icon { border-color: var(--red); color: var(--red); }
+.tip-box {
+  visibility: hidden; opacity: 0; transform: translateY(4px);
+  position: absolute; z-index: 50; bottom: 100%; left: 50%;
+  translate: -50% 0;
+  margin-bottom: 8px;
+  width: 260px;
+  background: var(--bg3); border: 1px solid var(--border2);
+  border-top: 2px solid var(--red);
+  padding: 10px 12px;
+  font-family: var(--mono); font-size: 10px; line-height: 1.55;
+  color: #aaa;
+  transition: all .2s;
+  pointer-events: none;
+}
+.tip-wrap:hover .tip-box {
+  visibility: visible; opacity: 1; transform: translateY(0);
+}
+
+input[type="radio"] {
+  position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none;
+}
+.opt-grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: .5rem; }
+.opt-grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: .5rem; }
+.opt-grid-2 { display: grid; grid-template-columns: repeat(2,1fr); gap: .5rem; }
+
+.opt-label {
+  display: flex; flex-direction: column;
+  align-items: flex-start; justify-content: space-between;
+  padding: .75rem .9rem;
+  background: var(--bg3); border: 1px solid var(--border);
+  cursor: pointer; transition: all .18s;
+  min-height: 64px;
+}
+.opt-label:hover {
+  border-color: var(--border2); background: #323234;
+}
+input[type="radio"]:checked + .opt-label {
+  background: var(--red); border-color: var(--red);
+  color: #fff;
+  box-shadow: 0 0 18px var(--red-dim);
+}
+input[type="radio"]:checked + .opt-label .opt-sub { color: rgba(255,255,255,.6); }
+.opt-main {
+  font-family: var(--sans); font-weight: 700;
+  font-size: 12px; text-transform: uppercase; letter-spacing: .04em;
+}
+.opt-sub {
+  font-family: var(--mono); font-size: 9px;
+  color: var(--muted); letter-spacing: .08em;
+  margin-top: 4px;
+  transition: color .18s;
+}
+.opt-desc {
+  font-family: var(--mono); font-size: 9px;
+  color: var(--muted); margin-top: 6px; line-height: 1.4;
+}
+input[type="radio"]:checked + .opt-label .opt-desc { color: rgba(255,255,255,.55); }
+
+
+.preset-section {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-top: 2px solid var(--red);
+  padding: 1.5rem; margin-bottom: 1rem;
+}
+.preset-select {
+  width: 100%; background: var(--bg3); border: 1px solid var(--border2);
+  color: var(--white); font-family: var(--mono); font-size: 11px;
+  padding: 10px 12px; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23e8000b'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+  cursor: pointer; transition: border-color .2s;
+  margin-bottom: .75rem;
+}
+.preset-select:focus { outline: none; border-color: var(--red); }
+.preset-select optgroup {
+  background: var(--bg3);
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: .1em;
+}
+.preset-select option {
+  background: var(--bg3);
+  color: var(--white);
+  padding: 4px 8px;
+}
+
+.preset-info {
+  display: none;
+  background: var(--bg); border: 1px solid var(--border);
+  border-left: 2px solid var(--red);
+  padding: .75rem 1rem;
+  font-family: var(--mono); font-size: 10px; color: var(--muted);
+  line-height: 1.6; margin-bottom: .75rem;
+}
+.preset-info.show { display: block; }
+
+
+.section-sep {
+  border: none; border-top: 1px solid var(--border);
+  margin: 2rem 0;
+}
+
+
+.side-panel {
+  background: var(--bg2); border: 1px solid var(--border);
+  padding: 1.25rem;
+}
+.side-label {
+  font-family: var(--mono); font-size: 9px;
+  letter-spacing: .2em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: .75rem;
+  display: flex; align-items: center; gap: .4rem;
+}
+.side-label::before {
+  content: ''; width: 6px; height: 1px; background: var(--red); display: inline-block;
+}
+
+/* SVG Gauge */
+#gauge-wrap {
+  display: flex; justify-content: center;
+  position: relative; margin: .5rem 0 1.25rem;
+}
+#gauge-bg { fill: none; stroke: var(--border2); }
+#gauge-fill {
+  fill: none; stroke: var(--red);
+  stroke-linecap: round;
+  transition: stroke-dashoffset .7s cubic-bezier(.65,0,.35,1),
+              stroke .4s ease;
+  filter: drop-shadow(0 0 8px var(--red-glow));
+}
+#gauge-score {
+  font-family: var(--display); font-size: 3rem;
+  fill: #fff; text-anchor: middle; dominant-baseline: central;
+}
+#gauge-sev {
+  font-family: var(--mono); font-size: .6rem;
+  fill: var(--muted); text-anchor: middle;
+  letter-spacing: .15em; text-transform: uppercase;
+}
+
+/* Vector display */
+#vector-display {
+  font-family: var(--mono); font-size: 10px;
+  color: var(--red); word-break: break-all;
+  line-height: 1.7; letter-spacing: .04em;
+  padding: .75rem; background: var(--bg3); border: 1px solid var(--border);
+  margin-bottom: .75rem;
+  min-height: 60px;
+}
+
+
+.sub-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; margin-bottom: .75rem; }
+.sub-item {
+  background: var(--bg3); border: 1px solid var(--border);
+  padding: .6rem .75rem;
+}
+.sub-item-label { font-family: var(--mono); font-size: 8px; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }
+.sub-item-val { font-family: var(--display); font-size: 1.4rem; color: #fff; }
+
+
+.meter-wrap { margin-bottom: 1rem; }
+.meter-track {
+  height: 3px; background: var(--border);
+  border: 1px solid var(--border2); position: relative; overflow: hidden;
+  margin-bottom: 3px;
+}
+#meter-fill {
+  height: 100%; width: 0%;
+  transition: width .6s cubic-bezier(.4,0,.2,1), background .4s;
+}
+.meter-ticks {
+  display: flex; justify-content: space-between;
+  font-family: var(--mono); font-size: 7.5px; color: var(--muted2);
+}
+
+
+.act-btn {
+  width: 100%; display: block;
+  font-family: var(--mono); font-size: 9px;
+  letter-spacing: .16em; text-transform: uppercase;
+  padding: 10px; margin-bottom: .4rem;
+  cursor: pointer; transition: all .2s; border: 1px solid;
+  text-align: center;
+}
+.act-btn-primary { background: var(--red); color: #fff; border-color: var(--red); }
+.act-btn-primary:hover { background: #c70000; }
+.act-btn-outline { background: transparent; color: var(--muted); border-color: var(--border); }
+.act-btn-outline:hover { border-color: var(--red); color: var(--red); }
+
+
+.incomplete-bar {
+  height: 2px; background: var(--border); margin-bottom: .75rem;
+  position: relative; overflow: hidden;
+}
+.incomplete-bar::after {
+  content: '';
+  position: absolute; top: 0; left: -40%;
+  width: 40%; height: 100%;
+  background: linear-gradient(90deg, transparent, var(--red), transparent);
+  animation: scanning 2s linear infinite;
+}
+@keyframes scanning { to { left: 100%; } }
+
+
+.bounty-table { width: 100%; border-collapse: collapse; }
+.bounty-table tr { border-bottom: 1px solid var(--border); }
+.bounty-table tr:last-child { border-bottom: none; }
+.bounty-table td {
+  font-family: var(--mono); font-size: 9px; letter-spacing: .06em;
+  padding: 6px 4px;
+}
+.bounty-tier { font-weight: 700; letter-spacing: .12em; }
+.bounty-range { color: var(--muted); }
+.bounty-active {
+  background: var(--red-dim);
+  border-left: 2px solid var(--red) !important;
+  transition: all .3s;
+}
+.bounty-active td:first-child { color: var(--red); }
+
+
+#audit-section {
+  position: relative; z-index: 1;
+  max-width: 1400px; margin: 0 auto;
+  padding: 2rem 1.5rem 6rem;
+}
+.audit-head {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;
+}
+.audit-title {
+  font-family: var(--display); font-size: 3rem;
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.audit-actions { display: flex; gap: .5rem; }
+.audit-btn {
+  font-family: var(--mono); font-size: 9px; letter-spacing: .15em;
+  text-transform: uppercase; padding: 6px 14px;
+  background: transparent; border: 1px solid var(--border);
+  color: var(--muted); cursor: pointer; transition: all .2s;
+}
+.audit-btn:hover { border-color: var(--red); color: var(--red); }
+
+.audit-table-wrap {
+  background: var(--bg2); border: 1px solid var(--border);
+  overflow-x: auto;
+}
+table { width: 100%; border-collapse: collapse; }
+thead tr { border-bottom: 1px solid var(--border2); }
+th {
+  font-family: var(--mono); font-size: 8.5px; letter-spacing: .18em;
+  text-transform: uppercase; color: var(--muted);
+  padding: 12px 16px; text-align: left; font-weight: 400;
+}
+.log-row {
+  border-bottom: 1px solid var(--border);
+  transition: background .15s;
+}
+.log-row:last-child { border-bottom: none; }
+.log-row:hover { background: rgba(232,0,11,.04); }
+td {
+  padding: 12px 16px;
+  font-family: var(--mono); font-size: 10px;
+}
+.td-time  { color: var(--muted); white-space: nowrap; }
+.td-vec   { color: var(--red); word-break: break-all; }
+.td-score { font-family: var(--display); font-size: 1.3rem; }
+.td-sev   { text-transform: uppercase; font-size: 9px; letter-spacing: .12em; }
+.td-act   { text-align: right; }
+.row-copy {
+  font-family: var(--mono); font-size: 8.5px; letter-spacing: .12em;
+  text-transform: uppercase; background: transparent;
+  border: 1px solid var(--border); color: var(--muted);
+  padding: 4px 10px; cursor: pointer; transition: all .18s;
+}
+.row-copy:hover { border-color: var(--red); color: var(--red); }
+.audit-empty {
+  padding: 3rem; text-align: center;
+  font-family: var(--mono); font-size: 10px;
+  color: var(--muted2); letter-spacing: .15em; text-transform: uppercase;
+}
+
+
+#toast {
+  position: fixed; bottom: 1.5rem; right: 1.5rem;
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-left: 3px solid var(--red);
+  font-family: var(--mono); font-size: 10px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--white);
+  padding: 10px 18px; z-index: 9000;
+  opacity: 0; transform: translateX(14px);
+  transition: all .3s cubic-bezier(.4,0,.2,1);
+  pointer-events: none;
+}
+#toast.show { opacity: 1; transform: translateX(0); }
+
+
+#parse-modal {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.93); z-index: 9001;
+  align-items: center; justify-content: center;
+}
+#parse-modal.open { display: flex; }
+.modal-inner {
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-top: 3px solid var(--red);
+  width: min(580px, 92vw); padding: 2rem;
+  position: relative;
+}
+.modal-title {
+  font-family: var(--mono); font-size: 9px;
+  color: var(--red); letter-spacing: .25em; text-transform: uppercase;
+  margin-bottom: 1rem;
+}
+.modal-textarea {
+  width: 100%; background: var(--bg3); border: 1px solid var(--border2);
+  color: var(--white); font-family: var(--mono); font-size: 11px;
+  padding: 12px; resize: none;
+  transition: border-color .2s;
+}
+.modal-textarea:focus { outline: none; border-color: var(--red); }
+.modal-footer {
+  display: flex; gap: .6rem; justify-content: flex-end; margin-top: .75rem;
+}
+#modal-close-btn {
+  position: absolute; top: .75rem; right: .75rem;
+  background: none; border: none; color: var(--muted);
+  font-family: var(--mono); font-size: 11px;
+  cursor: pointer; padding: 4px 8px;
+  transition: color .2s;
+}
+#modal-close-btn:hover { color: var(--red); }
+
+
+footer {
+  position: relative; z-index: 1;
+  border-top: 1px solid var(--border);
+  padding: 1.5rem 1.5rem;
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 1rem;
+  max-width: 1400px; margin: 0 auto;
+}
+.foot-brand { font-family: var(--display); font-size: 1.3rem; color: var(--muted2); }
+.foot-brand span { color: var(--red); }
+.foot-meta {
+  font-family: var(--mono); font-size: 8px;
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--muted2);
+}
+#live-clock {
+  font-family: var(--mono); font-size: 9px; letter-spacing: .1em;
+  color: var(--muted);
+}
+</style>
+</head>
+<body>
+
+<!-- Dot grid -->
+<div id="dot-grid"></div>
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Parse Modal -->
+<div id="parse-modal">
+  <div class="modal-inner">
+    <button id="modal-close-btn">✕</button>
+    <p class="modal-title">// Parse CVSS v3.x Vector String</p>
+    <textarea id="modal-ta" class="modal-textarea" rows="3"
+      placeholder="CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      spellcheck="false"></textarea>
+    <div class="modal-footer">
+      <button class="act-btn act-btn-outline" style="width:auto;margin:0" onclick="closeModal()">Cancel</button>
+      <button class="act-btn act-btn-primary" style="width:auto;margin:0" onclick="submitParse()">Parse &amp; Load →</button>
+    </div>
+  </div>
+</div>
+
+
+<nav id="main-nav">
+  <div class="nav-brand">
+    VEC<span>TOR</span>
+    <span class="nav-brand-sub">Bug Bounty Edition</span>
+  </div>
+  <div class="nav-links">
+    <a href="#owasp-presets">OWASP</a>
+    <a href="#calculator">Exploitability</a>
+    <a href="#cia-sec">CIA Impact</a>
+    <a href="#audit-section">Audit Log</a>
+  </div>
+  <div style="display:flex;align-items:center;gap:1rem">
+    <span id="live-clock">00:00:00</span>
+    <span class="nav-pill"><span class="status-dot"></span>CVSS v3.1</span>
+  </div>
+</nav>
+
+
+<div id="app">
+
+
+<div id="left-col">
+
+  <!-- SECTION 0: OWASP PRESETS -->
+  <section id="owasp-presets" style="margin-bottom:1.5rem">
+    <div class="sec-head">
+      <span class="sec-num">00</span>
+      <span class="sec-title">OWASP Quick Presets</span>
+    </div>
+    <p class="sec-desc">Select a vulnerability category from any OWASP year to auto-fill base metrics with a realistic average configuration.</p>
+    <div class="preset-section" id="ps-card">
+      <div style="display:grid;grid-template-columns:1fr auto;gap:.75rem;align-items:end">
+        <div>
+          <label style="font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.5rem;">
+            Vulnerability Category — Multi-Year OWASP Top 10
+          </label>
+          <select id="owasp-sel" class="preset-select">
+            <option value="">— Manual Configuration —</option>
+
+            <optgroup label="── OWASP Web Top 10 · 2021 ──────────────────────">
+              <option value="A01_2021">A01:2021 — Broken Access Control</option>
+              <option value="A02_2021">A02:2021 — Cryptographic Failures</option>
+              <option value="A03_sqli_2021">A03:2021 — SQL Injection</option>
+              <option value="A03_xss_2021">A03:2021 — Cross-Site Scripting (XSS)</option>
+              <option value="A03_cmdi_2021">A03:2021 — Command Injection / RCE</option>
+              <option value="A04_2021">A04:2021 — Insecure Design</option>
+              <option value="A05_2021">A05:2021 — Security Misconfiguration</option>
+              <option value="A06_2021">A06:2021 — Vulnerable &amp; Outdated Components</option>
+              <option value="A07_2021">A07:2021 — Auth &amp; Session Failures</option>
+              <option value="A08_2021">A08:2021 — Software &amp; Data Integrity Failures</option>
+              <option value="A09_2021">A09:2021 — Security Logging Failures</option>
+              <option value="A10_2021">A10:2021 — SSRF</option>
+            </optgroup>
+
+            <optgroup label="── OWASP API Security Top 10 · 2019 ────────────">
+              <option value="API1_2019">API1:2019 — Broken Object Level Auth (BOLA/IDOR)</option>
+              <option value="API2_2019">API2:2019 — Broken User Authentication</option>
+              <option value="API3_2019">API3:2019 — Excessive Data Exposure</option>
+              <option value="API4_2019">API4:2019 — Lack of Resources &amp; Rate Limiting (DoS)</option>
+              <option value="API5_2019">API5:2019 — Broken Function Level Authorization</option>
+              <option value="API6_2019">API6:2019 — Mass Assignment</option>
+              <option value="API7_2019">API7:2019 — Security Misconfiguration</option>
+              <option value="API8_2019">API8:2019 — Injection</option>
+              <option value="API9_2019">API9:2019 — Improper Assets Management</option>
+              <option value="API10_2019">API10:2019 — Insufficient Logging &amp; Monitoring</option>
+            </optgroup>
+
+            <optgroup label="── OWASP Web Top 10 · 2017 ──────────────────────">
+              <option value="A1_2017">A1:2017 — Injection (SQLi / CMDi)</option>
+              <option value="A2_2017">A2:2017 — Broken Authentication</option>
+              <option value="A3_2017">A3:2017 — Sensitive Data Exposure</option>
+              <option value="A4_2017">A4:2017 — XML External Entities (XXE)</option>
+              <option value="A5_2017">A5:2017 — Broken Access Control</option>
+              <option value="A6_2017">A6:2017 — Security Misconfiguration</option>
+              <option value="A7_2017">A7:2017 — Cross-Site Scripting (XSS)</option>
+              <option value="A8_2017">A8:2017 — Insecure Deserialization</option>
+              <option value="A9_2017">A9:2017 — Known Vulnerable Components</option>
+              <option value="A10_2017">A10:2017 — Insufficient Logging &amp; Monitoring</option>
+            </optgroup>
+
+            <optgroup label="── OWASP Web Top 10 · 2013 (covers 2013–2016) ──">
+              <option value="A1_2013">A1:2013 — Injection</option>
+              <option value="A2_2013">A2:2013 — Broken Authentication &amp; Session Mgmt</option>
+              <option value="A3_2013">A3:2013 — Cross-Site Scripting (XSS)</option>
+              <option value="A4_2013">A4:2013 — Insecure Direct Object Reference (IDOR)</option>
+              <option value="A5_2013">A5:2013 — Security Misconfiguration</option>
+              <option value="A6_2013">A6:2013 — Sensitive Data Exposure</option>
+              <option value="A7_2013">A7:2013 — Missing Function Level Access Control</option>
+              <option value="A8_2013">A8:2013 — Cross-Site Request Forgery (CSRF)</option>
+              <option value="A9_2013">A9:2013 — Using Known Vulnerable Components</option>
+              <option value="A10_2013">A10:2013 — Unvalidated Redirects &amp; Forwards</option>
+            </optgroup>
+          </select>
+        </div>
+        <button id="apply-owasp" class="act-btn act-btn-primary" style="width:auto;margin:0;height:40px;padding:0 20px"><span>Apply →</span></button>
+      </div>
+      <div id="preset-info" class="preset-info"></div>
+    </div>
+  </section>
+
+  <hr class="section-sep">
+
+  <!-- SECTION 1: BASE METRICS — EXPLOITABILITY -->
+  <section id="calculator">
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <span class="sec-title">Exploitability Metrics</span>
+    </div>
+
+    <!-- Attack Vector -->
+    <div class="metric-card" id="mc-AV">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="card-title">Attack Vector</span>
+          <div class="tip-wrap">
+            <div class="tip-icon">?</div>
+            <div class="tip-box">How is the target reachable? Network (AV:N) = remotely exploitable over internet — highest weight. Adjacent = same LAN/Bluetooth. Local = requires shell/login. Physical = hands-on device access.</div>
+          </div>
+        </div>
+        <span class="card-badge" id="badge-AV">AV:_</span>
+      </div>
+      <div class="opt-grid-4">
+        <div><input type="radio" name="AV" id="AV_N" value="N">
+        <label for="AV_N" class="opt-label"><span class="opt-main">Network</span><span class="opt-sub">(N) · 0.85 — Remote</span></label></div>
+        <div><input type="radio" name="AV" id="AV_A" value="A">
+        <label for="AV_A" class="opt-label"><span class="opt-main">Adjacent</span><span class="opt-sub">(A) · 0.62 — LAN/BT</span></label></div>
+        <div><input type="radio" name="AV" id="AV_L" value="L">
+        <label for="AV_L" class="opt-label"><span class="opt-main">Local</span><span class="opt-sub">(L) · 0.55 — Shell</span></label></div>
+        <div><input type="radio" name="AV" id="AV_P" value="P">
+        <label for="AV_P" class="opt-label"><span class="opt-main">Physical</span><span class="opt-sub">(P) · 0.20 — Touch</span></label></div>
+      </div>
+    </div>
+
+    <!-- Attack Complexity -->
+    <div class="metric-card" id="mc-AC">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="card-title">Attack Complexity</span>
+          <div class="tip-wrap">
+            <div class="tip-icon">?</div>
+            <div class="tip-box">Can you reproduce the attack reliably? Low (AC:L) = consistent, no special conditions (most web bugs). High = requires race conditions, specific config, or chaining with another bug to trigger.</div>
+          </div>
+        </div>
+        <span class="card-badge" id="badge-AC">AC:_</span>
+      </div>
+      <div class="opt-grid-2">
+        <div><input type="radio" name="AC" id="AC_L" value="L">
+        <label for="AC_L" class="opt-label"><span class="opt-main">Low</span><span class="opt-sub">(L) · Reproducible, no special conditions</span></label></div>
+        <div><input type="radio" name="AC" id="AC_H" value="H">
+        <label for="AC_H" class="opt-label"><span class="opt-main">High</span><span class="opt-sub">(H) · Race condition / chaining required</span></label></div>
+      </div>
+    </div>
+
+    <!-- Privileges Required -->
+    <div class="metric-card" id="mc-PR">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="card-title">Privileges Required</span>
+          <div class="tip-wrap">
+            <div class="tip-icon">?</div>
+            <div class="tip-box">Does the attacker need an account? None (PR:N) = unauthenticated — highest impact. Low = regular user (most IDOR/BOLA bugs). High = admin panel required. Weight increases in Changed scope.</div>
+          </div>
+        </div>
+        <span class="card-badge" id="badge-PR">PR:_</span>
+      </div>
+      <div class="opt-grid-3">
+        <div><input type="radio" name="PR" id="PR_N" value="N" data-wu="0.85" data-wc="0.85">
+        <label for="PR_N" class="opt-label"><span class="opt-main">None</span><span class="opt-sub">(N) · Unauthenticated</span></label></div>
+        <div><input type="radio" name="PR" id="PR_L" value="L" data-wu="0.62" data-wc="0.68">
+        <label for="PR_L" class="opt-label"><span class="opt-main">Low</span><span class="opt-sub">(L) · Regular user / free account</span></label></div>
+        <div><input type="radio" name="PR" id="PR_H" value="H" data-wu="0.27" data-wc="0.50">
+        <label for="PR_H" class="opt-label"><span class="opt-main">High</span><span class="opt-sub">(H) · Admin / privileged role</span></label></div>
+      </div>
+    </div>
+
+
+    <div class="metric-card" id="mc-UI">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="card-title">User Interaction</span>
+          <div class="tip-wrap">
+            <div class="tip-icon">?</div>
+            <div class="tip-box">Does a victim need to do something? None (UI:N) = attacker acts alone (IDOR, RCE, SQLi). Required (UI:R) = victim must click a link or open a file (Stored XSS, CSRF, phishing chains).</div>
+          </div>
+        </div>
+        <span class="card-badge" id="badge-UI">UI:_</span>
+      </div>
+      <div class="opt-grid-2">
+        <div><input type="radio" name="UI" id="UI_N" value="N">
+        <label for="UI_N" class="opt-label"><span class="opt-main">None</span><span class="opt-sub">(N) · Attacker acts alone</span></label></div>
+        <div><input type="radio" name="UI" id="UI_R" value="R">
+        <label for="UI_R" class="opt-label"><span class="opt-main">Required</span><span class="opt-sub">(R) · Victim must click / interact</span></label></div>
+      </div>
+    </div>
+
+
+    <div class="metric-card" id="mc-S" style="border-top:2px solid var(--red)">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="card-title">Scope</span>
+          <div class="tip-wrap">
+            <div class="tip-icon">?</div>
+            <div class="tip-box">Can the vulnerability reach beyond the targeted component? Unchanged (S:U) = impact stays within app. Changed (S:C) = attacker pivots to other systems — e.g. SSRF → cloud metadata, XSS → session hijack beyond origin, sandbox escape.</div>
+          </div>
+        </div>
+        <span class="card-badge" id="badge-S">S:_</span>
+      </div>
+      <div class="opt-grid-2">
+        <div><input type="radio" name="S" id="S_U" value="U">
+        <label for="S_U" class="opt-label"><span class="opt-main">Unchanged</span><span class="opt-sub">(U) · Impact within target component</span></label></div>
+        <div><input type="radio" name="S" id="S_C" value="C">
+        <label for="S_C" class="opt-label"><span class="opt-main">Changed</span><span class="opt-sub">(C) · Attacker can pivot to other systems</span></label></div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="section-sep">
+
+
+  <section id="cia-sec">
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <span class="sec-title">CIA Impact Triad</span>
+    </div>
+    <p class="sec-desc">What can the attacker access, modify, or destroy? This directly determines your impact sub-score and bounty tier.</p>
+
+
+    <div class="metric-card" id="mc-C">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="card-title">Confidentiality (C)</span>
+          <div class="tip-wrap"><div class="tip-icon">?</div>
+          <div class="tip-box">Can the attacker read sensitive data? High = full dump (tokens, PII, source code, creds). Low = partial exposure (leaked IDs, metadata, partial response). None = no data exposed.</div>
+          </div>
+        </div>
+        <span class="card-badge" id="badge-C">C:_</span>
+      </div>
+      <div class="opt-grid-3">
+        <div><input type="radio" name="C" id="C_N" value="N">
+        <label for="C_N" class="opt-label"><span class="opt-main">None</span><span class="opt-desc">No data exposed to attacker</span></label></div>
+        <div><input type="radio" name="C" id="C_L" value="L">
+        <label for="C_L" class="opt-label"><span class="opt-main">Low</span><span class="opt-desc">Partial leak — IDs, metadata, limited data</span></label></div>
+        <div><input type="radio" name="C" id="C_H" value="H">
+        <label for="C_H" class="opt-label"><span class="opt-main">High</span><span class="opt-desc">Full dump — tokens, creds, PII, source</span></label></div>
+      </div>
+    </div>
+
+
+    <div class="metric-card" id="mc-I">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="card-title">Integrity (I)</span>
+          <div class="tip-wrap"><div class="tip-icon">?</div>
+          <div class="tip-box">Can the attacker modify data or behavior? High = full write access — DB records, configs, code exec. Low = limited write (IDOR partial update, reflected payload). None = read-only bug.</div>
+          </div>
+        </div>
+        <span class="card-badge" id="badge-I">I:_</span>
+      </div>
+      <div class="opt-grid-3">
+        <div><input type="radio" name="I" id="I_N" value="N">
+        <label for="I_N" class="opt-label"><span class="opt-main">None</span><span class="opt-desc">No data modification possible</span></label></div>
+        <div><input type="radio" name="I" id="I_L" value="L">
+        <label for="I_L" class="opt-label"><span class="opt-main">Low</span><span class="opt-desc">Partial / limited write capability</span></label></div>
+        <div><input type="radio" name="I" id="I_H" value="H">
+        <label for="I_H" class="opt-label"><span class="opt-main">High</span><span class="opt-desc">Full data manipulation / code execution</span></label></div>
+      </div>
+    </div>
+
+
+    <div class="metric-card" id="mc-A">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="card-title">Availability (A)</span>
+          <div class="tip-wrap"><div class="tip-icon">?</div>
+          <div class="tip-box">Can the attacker take down the service? High = full DoS — crash, OOM, sustained 100% CPU. Low = degraded performance, rate-limited DoS. None = service unaffected.</div>
+          </div>
+        </div>
+        <span class="card-badge" id="badge-A">A:_</span>
+      </div>
+      <div class="opt-grid-3">
+        <div><input type="radio" name="A" id="A_N" value="N">
+        <label for="A_N" class="opt-label"><span class="opt-main">None</span><span class="opt-desc">Service unaffected</span></label></div>
+        <div><input type="radio" name="A" id="A_L" value="L">
+        <label for="A_L" class="opt-label"><span class="opt-main">Low</span><span class="opt-desc">Degraded perf / intermittent DoS</span></label></div>
+        <div><input type="radio" name="A" id="A_H" value="H">
+        <label for="A_H" class="opt-label"><span class="opt-main">High</span><span class="opt-desc">Full service crash / sustained DoS</span></label></div>
+      </div>
+    </div>
+  </section>
+
+
+  <div style="display:none">
+    <input type="radio" name="E"  id="E_X"  value="X" checked>
+    <input type="radio" name="RL" id="RL_X" value="X" checked>
+    <input type="radio" name="RC" id="RC_X" value="X" checked>
+    <input type="radio" name="CR" id="CR_X" value="X" checked>
+    <input type="radio" name="IR" id="IR_X" value="X" checked>
+    <input type="radio" name="AR" id="AR_X" value="X" checked>
+  </div>
+
+</div>
+
+
+<div id="sidebar">
+
+
+  <div class="side-panel" style="border-top:2px solid var(--red)">
+    <div class="side-label">Live Score</div>
+
+    <div id="gauge-wrap">
+      <svg width="200" height="120" viewBox="0 0 200 120" overflow="visible">
+        <path id="gauge-bg"
+          d="M 20 110 A 80 80 0 1 1 180 110"
+          stroke-width="10" fill="none"
+          style="stroke:var(--border2)"/>
+        <path id="gauge-fill"
+          d="M 20 110 A 80 80 0 1 1 180 110"
+          stroke-width="10" fill="none"
+          stroke-dasharray="251.2" stroke-dashoffset="251.2"/>
+        <text id="gauge-score" x="100" y="88" font-family="'Bebas Neue'" font-size="40" fill="white" text-anchor="middle">0.0</text>
+        <text id="gauge-sev" x="100" y="108" font-family="'JetBrains Mono'" font-size="8" fill="#555" text-anchor="middle" letter-spacing="2">NONE</text>
+      </svg>
+    </div>
+
+
+    <div class="meter-wrap">
+      <div class="meter-track"><div id="meter-fill"></div></div>
+      <div class="meter-ticks">
+        <span>0.0</span><span>LOW</span><span>MED 4</span><span>HIGH 7</span><span>CRIT 9</span>
+      </div>
+    </div>
+
+
+    <div class="sub-grid">
+      <div class="sub-item"><div class="sub-item-label">Base Score</div><div class="sub-item-val" id="sd-base">—</div></div>
+      <div class="sub-item"><div class="sub-item-label">Temporal</div><div class="sub-item-val" id="sd-temp">—</div></div>
+      <div class="sub-item"><div class="sub-item-label">Exploitability</div><div class="sub-item-val" id="sd-expl">—</div></div>
+      <div class="sub-item"><div class="sub-item-label">Impact</div><div class="sub-item-val" id="sd-imp">—</div></div>
+    </div>
+  </div>
+
+
+  <div class="side-panel" style="border-left:2px solid var(--red)">
+    <div class="side-label">Bounty Tier Mapping</div>
+    <table class="bounty-table" id="bounty-table">
+      <tr id="tier-crit" data-min="9.0" data-max="10.0">
+        <td class="bounty-tier" style="color:#e8000b">P1 · CRITICAL</td>
+        <td class="bounty-range">9.0 – 10.0</td>
+        <td style="color:var(--muted);font-size:8px">$2,500 – $50k+</td>
+      </tr>
+      <tr id="tier-high" data-min="7.0" data-max="8.9">
+        <td class="bounty-tier" style="color:#ff7043">P2 · HIGH</td>
+        <td class="bounty-range">7.0 – 8.9</td>
+        <td style="color:var(--muted);font-size:8px">$500 – $2,500</td>
+      </tr>
+      <tr id="tier-med" data-min="4.0" data-max="6.9">
+        <td class="bounty-tier" style="color:#ffca28">P3 · MEDIUM</td>
+        <td class="bounty-range">4.0 – 6.9</td>
+        <td style="color:var(--muted);font-size:8px">$100 – $500</td>
+      </tr>
+      <tr id="tier-low" data-min="0.1" data-max="3.9">
+        <td class="bounty-tier" style="color:#69f0ae">P4 · LOW</td>
+        <td class="bounty-range">0.1 – 3.9</td>
+        <td style="color:var(--muted);font-size:8px">$50 – $150</td>
+      </tr>
+      <tr id="tier-info" data-min="0.0" data-max="0.0">
+        <td class="bounty-tier" style="color:var(--muted)">P5 · INFO</td>
+        <td class="bounty-range">0.0</td>
+        <td style="color:var(--muted);font-size:8px">Informational</td>
+      </tr>
+    </table>
+    <p style="font-family:var(--mono);font-size:8px;color:var(--muted2);margin-top:.6rem;line-height:1.5">
+      ⚠ Bounty ranges are indicative — actual payouts depend on program, asset criticality, and impact narrative.
+    </p>
+  </div>
+
+>
+  <div class="side-panel">
+    <div class="side-label">Vector String</div>
+    <div class="incomplete-bar" id="incomplete-bar"></div>
+    <div id="vector-display">CVSS:3.1 — Select all base metrics to generate vector</div>
+  </div>
+
+
+  <div class="side-panel" style="border-left:2px solid var(--border2);background:transparent">
+    <div class="side-label">Hunter Context</div>
+    <p id="sec-tip" style="font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.7">
+      Select metrics or load an OWASP preset to see bug bounty context and submission guidance.
+    </p>
+  </div>
+
+
+  <div class="side-panel">
+    <button class="act-btn act-btn-primary" id="save-audit">⊕ Commit to Audit Log</button>
+    <button class="act-btn act-btn-outline" id="copy-vec">⌘ Copy Vector String</button>
+    <button class="act-btn act-btn-outline" id="parse-btn">↓ Parse Vector String</button>
+    <button class="act-btn act-btn-outline" id="export-btn">↯ Export JSON Report</button>
+    <button class="act-btn act-btn-outline" id="reset-btn">↺ Reset All Metrics</button>
+  </div>
+
+</div>
+</div>
+
+
+<section id="audit-section">
+  <div class="audit-head">
+    <h2 class="audit-title">Audit Log</h2>
+    <div class="audit-actions">
+      <button class="audit-btn" id="export-all-btn">Export All (.json)</button>
+      <button class="audit-btn" id="clear-log-btn">Clear Records</button>
+    </div>
+  </div>
+  <div class="audit-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Vector String</th>
+          <th>Score</th>
+          <th>Severity</th>
+          <th>Tier</th>
+          <th style="text-align:right">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="log-body"></tbody>
+    </table>
+    <div id="log-empty" class="audit-empty">No records found. Commit your first assessment above.</div>
+  </div>
+</section>
+
+<footer>
+  <div class="foot-brand">VEC<span>TOR</span> ENGINE <span style="color:var(--muted2);font-size:.9rem">· Bug Bounty Edition</span></div>
+  <div class="foot-meta">CVSS v3.1 · NVD/FIRST Compliant · For Authorized Bug Hunting Only</div>
+  <span id="live-clock" style="display:none">00:00:00</span>
+</footer>
+
+<div style="position:relative;z-index:1;border-top:1px solid var(--border);padding:1.25rem 1.5rem;max-width:1400px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem">
+  <div style="display:flex;align-items:center;gap:.75rem">
+    <span style="font-family:var(--mono);font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted2)">Built by</span>
+    <span style="font-family:var(--display);font-size:1.1rem;color:var(--white);letter-spacing:.04em">Mohammed Zureigat</span>
+    <span style="font-family:var(--mono);font-size:9px;color:var(--red);letter-spacing:.1em">// Xia0checkmate</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:1rem">
+    <a href="https://www.linkedin.com/in/mohammed-zureigat/" target="_blank" rel="noopener"
+       style="font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);text-decoration:none;border:1px solid var(--border);padding:4px 12px;transition:all .2s"
+       onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'"
+       onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+      LinkedIn ↗
+    </a>
+    <a href="https://github.com/Xia0checkmate" target="_blank" rel="noopener"
+       style="font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);text-decoration:none;border:1px solid var(--border);padding:4px 12px;transition:all .2s"
+       onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'"
+       onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+      GitHub ↗
+    </a>
+  </div>
+</div>
+
+
+<script>
+"use strict";
+gsap.registerPlugin(ScrollTrigger);
+
+
+const W = {
+  AV:  { N:0.85, A:0.62, L:0.55, P:0.2 },
+  AC:  { L:0.77, H:0.44 },
+  PR:  { U:{N:0.85,L:0.62,H:0.27}, C:{N:0.85,L:0.68,H:0.50} },
+  UI:  { N:0.85, R:0.62 },
+  CIA: { N:0, L:0.22, H:0.56 },
+  T: {
+    E:  { X:1, U:0.91, P:0.94, F:0.97, H:1 },
+    RL: { X:1, O:0.95, T:0.96, W:0.97, U:1 },
+    RC: { X:1, U:0.9,  R:0.96, C:1 }
+  },
+  REQ: { X:1, L:0.5, M:1, H:1.5 }
+};
+
+const TIPS = {
+  'NONE':     'Informational finding — no exploitable impact detected. Document for future reference but typically out-of-scope for bounty payout.',
+  'LOW':      'P4 tier on most platforms. Low risk but worth reporting. Include a working PoC and explain the worst-case scenario clearly to avoid deduplication.',
+  'MEDIUM':   'P3 tier — solid bug bounty finding. Expected $100–$500+ range. Write a clear impact narrative and reproduce steps. Demonstrate real-world exploitability.',
+  'HIGH':     'P2 tier — strong submission. Expected $500–$2,500+ on most platforms. Provide a clean PoC, reproduction steps, and impact evidence. Move fast — race conditions possible.',
+  'CRITICAL': 'P1 tier — submit immediately! Full-chain critical. Expected $2,500–$50,000+. Do NOT exploit beyond PoC. Report now, include impact scope, affected endpoints, and CVSS vector.'
+};
+
+
+const OWASP_PRESETS = {
+
+  A01_2021:      { AV:'N',AC:'L',PR:'L',UI:'N',S:'U',C:'H',I:'H',A:'N', info:'[2021·A01] Broken Access Control — attacker accesses other users\' data. Low-priv authenticated, no user interaction, full C+I impact.' },
+  A02_2021:      { AV:'N',AC:'H',PR:'N',UI:'N',S:'U',C:'H',I:'N',A:'N', info:'[2021·A02] Cryptographic Failures — weak/absent encryption. High complexity (protocol conditions), unauthenticated, full confidentiality loss.' },
+  A03_sqli_2021: { AV:'N',AC:'L',PR:'N',UI:'N',S:'U',C:'H',I:'L',A:'N', info:'[2021·A03] SQL Injection — DB manipulation via unsanitized input. No auth, no interaction, high confidentiality + partial integrity.' },
+  A03_xss_2021:  { AV:'N',AC:'L',PR:'L',UI:'R',S:'C',C:'L',I:'L',A:'N', info:'[2021·A03] XSS — injected script runs in victim browser. Changed scope (JS crosses origin). User interaction required (victim visits page).' },
+  A03_cmdi_2021: { AV:'N',AC:'L',PR:'N',UI:'N',S:'C',C:'H',I:'H',A:'H', info:'[2021·A03] Command Injection / RCE — CRITICAL. No auth, no interaction, changed scope (OS pivot). Full CIA loss.' },
+  A04_2021:      { AV:'N',AC:'L',PR:'N',UI:'N',S:'C',C:'H',I:'H',A:'H', info:'[2021·A04] Insecure Design — flawed architecture enables full compromise. Changed scope, no auth required.' },
+  A05_2021:      { AV:'N',AC:'L',PR:'N',UI:'N',S:'U',C:'L',I:'L',A:'L', info:'[2021·A05] Security Misconfiguration — exposed defaults, debug endpoints, verbose errors. Low individual impact but widespread.' },
+  A06_2021:      { AV:'N',AC:'H',PR:'N',UI:'R',S:'U',C:'L',I:'L',A:'L', info:'[2021·A06] Vulnerable Components — depends on component CVE. User interaction to trigger, high complexity. Low-med base impact.' },
+  A07_2021:      { AV:'N',AC:'L',PR:'N',UI:'R',S:'U',C:'H',I:'H',A:'H', info:'[2021·A07] Auth &amp; Session Failures — weak session mgmt enables account takeover. UI required (phishing/CSRF). Full impact post-compromise.' },
+  A08_2021:      { AV:'N',AC:'H',PR:'N',UI:'R',S:'U',C:'H',I:'H',A:'H', info:'[2021·A08] Integrity Failures — supply chain / deserialization. High complexity, victim action needed. Full CIA if triggered.' },
+  A09_2021:      { AV:'N',AC:'L',PR:'L',UI:'N',S:'U',C:'L',I:'N',A:'N', info:'[2021·A09] Logging Failures — attacker clears forensic trail. Low priv, minimal direct impact but enables lateral movement.' },
+  A10_2021:      { AV:'N',AC:'L',PR:'N',UI:'N',S:'C',C:'L',I:'L',A:'N', info:'[2021·A10] SSRF — server makes requests to internal services. Changed scope (cloud metadata, internal APIs). Unauthenticated, low complexity.' },
+
+
+  API1_2019: { AV:'N',AC:'L',PR:'L',UI:'N',S:'U',C:'H',I:'H',A:'N', info:'[API1:2019] BOLA / IDOR — attacker accesses objects owned by other users by manipulating IDs. Low-priv authenticated, no interaction. Most reported API bug.' },
+  API2_2019: { AV:'N',AC:'L',PR:'N',UI:'N',S:'U',C:'H',I:'H',A:'H', info:'[API2:2019] Broken User Authentication — weak tokens, no brute-force protection, credential stuffing. Unauthenticated. Full takeover if exploited.' },
+  API3_2019: { AV:'N',AC:'L',PR:'L',UI:'N',S:'U',C:'H',I:'N',A:'N', info:'[API3:2019] Excessive Data Exposure — API returns sensitive fields not needed by client (PII, tokens). Low priv, pure confidentiality impact.' },
+  API4_2019: { AV:'N',AC:'L',PR:'N',UI:'N',S:'U',C:'N',I:'N',A:'H', info:'[API4:2019] Rate Limiting / Resource Exhaustion — no throttle on expensive endpoints. Unauthenticated DoS. Availability impact only.' },
+  API5_2019: { AV:'N',AC:'L',PR:'L',UI:'N',S:'U',C:'H',I:'H',A:'N', info:'[API5:2019] Broken Function Level Auth — regular user calls admin-only endpoints. Low-priv pivot to full account or data manipulation.' },
+  API6_2019: { AV:'N',AC:'L',PR:'L',UI:'N',S:'U',C:'H',I:'H',A:'N', info:'[API6:2019] Mass Assignment — bulk-binding allows attacker to set privileged fields (isAdmin:true, balance:99999). Low priv, high C+I.' },
+  API7_2019: { AV:'N',AC:'L',PR:'N',UI:'N',S:'U',C:'L',I:'L',A:'L', info:'[API7:2019] Security Misconfiguration — CORS wildcard, default creds, verbose stack traces, exposed Swagger. Low impact per instance.' },
+  API8_2019: { AV:'N',AC:'L',PR:'N',UI:'N',S:'U',C:'H',I:'H',A:'N', info:'[API8:2019] Injection via API — SQL/NoSQL/command injection through API params. Unauthenticated, no interaction. High C+I.' },
+  API9_2019: { AV:'N',AC:'L',PR:'N',UI:'N',S:'U',C:'L',I:'L',A:'L', info:'[API9:2019] Improper Assets Management — undocumented / old API versions still active. Shadow APIs with no security controls.' },
+  API10_2019:{ AV:'N',AC:'L',PR:'L',UI:'N',S:'U',C:'L',I:'N',A:'N', info:'[API10:2019] Insufficient Logging — no audit trail for sensitive operations. Low priv, minimal direct impact. Enables persistent undetected compromise.' },
+
+
+  A1_2017:  { AV:'N',AC:'L',PR:'N',UI:'N',S:'U',C:'H',I:'H',A:'N', info:'[2017·A1] Injection (SQLi/CMDi) — unsanitized input reaches interpreter. No auth, no interaction. High C+I.' },
+  A2_2017:  { AV:'N',AC:'L',PR:'N',UI:'R',S:'U',C:'H',I:'H',A:'H', info:'[2017·A2] Broken Authentication — credential stuffing, session fixation. UI required (phishing). Full impact post-compromise.' },
+  A3_2017:  { AV:'N',AC:'H',PR:'N',UI:'N',S:'U',C:'H',I:'N',A:'N', info:'[2017·A3] Sensitive Data Exposure — weak crypto, cleartext transmission. High complexity, unauthenticated. Full confidentiality loss.' },
+  A4_2017:  { AV:'N',AC:'L',PR:'N',UI:'N',S:'C',C:'H',I:'L',A:'L', info:'[2017·A4] XXE — XML parser resolves external entities. Changed scope (SSRF, file read). No auth, no interaction.' },
+  A5_2017:  { AV:'N',AC:'L',PR:'L',UI:'N',S:'U',C:'H',I:'H',A:'N', info:'[2017·A5] Broken Access Control — IDOR, path traversal, privilege escalation. Low priv, full C+I.' },
+  A6_2017:  { AV:'N',AC:'L',PR:'N',UI:'N',S:'U',C:'L',I:'L',A:'L', info:'[2017·A6] Security Misconfiguration — open cloud buckets, verbose errors, default creds. Low per-instance impact.' },
+  A7_2017:  { AV:'N',AC:'L',PR:'L',UI:'R',S:'C',C:'L',I:'L',A:'N', info:'[2017·A7] XSS — reflected or stored. Changed scope (script crosses origin). Low priv, interaction needed.' },
+  A8_2017:  { AV:'N',AC:'H',PR:'N',UI:'R',S:'U',C:'H',I:'H',A:'H', info:'[2017·A8] Insecure Deserialization — RCE via malicious serialized object. High complexity, victim must trigger. Full CIA.' },
+  A9_2017:  { AV:'N',AC:'H',PR:'N',UI:'R',S:'U',C:'L',I:'L',A:'L', info:'[2017·A9] Known Vulnerable Components — outdated library CVE. User interaction to trigger, high complexity. Low-med base impact.' },
+  A10_2017: { AV:'N',AC:'L',PR:'L',UI:'N',S:'U',C:'L',I:'N',A:'N', info:'[2017·A10] Insufficient Logging — no audit trail. Attacker operates undetected. Low-priv access to trigger, minimal direct CIA.' },
+
+
+  A1_2013:  { AV:'N',AC:'L',PR:'N',UI:'N',S:'U',C:'H',I:'H',A:'N', info:'[2013·A1] Injection — SQL/OS/LDAP via unsanitized input. Unauthenticated. High C+I.' },
+  A2_2013:  { AV:'N',AC:'L',PR:'N',UI:'R',S:'U',C:'H',I:'H',A:'H', info:'[2013·A2] Broken Auth & Session — session hijack, predictable tokens. UI required (phishing). Full impact once stolen.' },
+  A3_2013:  { AV:'N',AC:'L',PR:'L',UI:'R',S:'C',C:'L',I:'L',A:'N', info:'[2013·A3] XSS — script injection in browser context. Low priv, interaction needed. Changed scope.' },
+  A4_2013:  { AV:'N',AC:'L',PR:'L',UI:'N',S:'U',C:'H',I:'H',A:'N', info:'[2013·A4] IDOR — direct object reference without authorization check. Low priv, no interaction, high C+I.' },
+  A5_2013:  { AV:'N',AC:'L',PR:'N',UI:'N',S:'U',C:'L',I:'L',A:'L', info:'[2013·A5] Security Misconfiguration — default accounts, unused pages, unpatched flaws. Low broad impact.' },
+  A6_2013:  { AV:'N',AC:'H',PR:'N',UI:'N',S:'U',C:'H',I:'N',A:'N', info:'[2013·A6] Sensitive Data Exposure — weak crypto, plaintext storage. High complexity. Full confidentiality loss.' },
+  A7_2013:  { AV:'N',AC:'L',PR:'L',UI:'N',S:'U',C:'H',I:'H',A:'N', info:'[2013·A7] Missing Function Level Access — calling privileged functions with low-priv account. High C+I.' },
+  A8_2013:  { AV:'N',AC:'L',PR:'N',UI:'R',S:'U',C:'N',I:'H',A:'N', info:'[2013·A8] CSRF — forces authenticated user to perform state-changing actions. UI required. Integrity impact.' },
+  A9_2013:  { AV:'N',AC:'H',PR:'N',UI:'R',S:'U',C:'L',I:'L',A:'L', info:'[2013·A9] Known Vulnerable Components — outdated lib exploited. High complexity, needs interaction. Low-med base.' },
+  A10_2013: { AV:'N',AC:'L',PR:'N',UI:'R',S:'U',C:'L',I:'L',A:'N', info:'[2013·A10] Unvalidated Redirects — open redirect for phishing / token exfiltration. UI required. Limited direct CIA.' }
+};
+
+
+function roundUp(num) {
+  const int = Math.round(num * 100000);
+  if (int % 10000 === 0) return int / 100000.0;
+  return (Math.floor(int / 10000) + 1) / 10.0;
+}
+
+
+const BASE_KEYS = ['AV','AC','PR','UI','S','C','I','A'];
+const ALL_KEYS  = [...BASE_KEYS,'E','RL','RC','CR','IR','AR'];
+
+function getVal(name) {
+  const el = document.querySelector(`input[name="${name}"]:checked`);
+  return el ? el.value : null;
+}
+
+function isComplete() {
+  return BASE_KEYS.every(k => getVal(k) !== null);
+}
+
+
+function calculate() {
+  const av=getVal('AV'), ac=getVal('AC'), pr=getVal('PR'), ui=getVal('UI');
+  const s=getVal('S'), c=getVal('C'), i=getVal('I'), a=getVal('A');
+  const e=getVal('E')||'X', rl=getVal('RL')||'X', rc=getVal('RC')||'X';
+  const cr=getVal('CR')||'X', ir=getVal('IR')||'X', ar=getVal('AR')||'X';
+
+  if (!av||!ac||!pr||!ui||!s||!c||!i||!a) return null;
+
+  const missC = 1 - W.CIA[c] * W.REQ[cr];
+  const missI = 1 - W.CIA[i] * W.REQ[ir];
+  const missA = 1 - W.CIA[a] * W.REQ[ar];
+  const iss = Math.min(0.915, 1 - missC * missI * missA);
+
+  let impact;
+  if (s === 'U') { impact = 6.42 * iss; }
+  else           { impact = 7.52*(iss-0.029) - 3.25*Math.pow(iss-0.02,15); }
+
+  const prW = (pr==='N') ? 0.85 : (s==='C' ? {'L':0.68,'H':0.50}[pr] : {'L':0.62,'H':0.27}[pr]);
+  const expl = 8.22 * W.AV[av] * W.AC[ac] * prW * W.UI[ui];
+
+  let base = 0;
+  if (impact > 0) {
+    base = (s==='U')
+      ? roundUp(Math.min(impact+expl, 10))
+      : roundUp(Math.min(1.08*(impact+expl), 10));
+  }
+
+  const temporal = roundUp(base * W.T.E[e] * W.T.RL[rl] * W.T.RC[rc]);
+
+  return { base, temporal, expl, impact: Math.max(0,impact), final: temporal };
+}
+
+
+function getSev(s) {
+  if (s===0)    return { label:'NONE',     color:'#00e676', tier:'P5 · INFO' };
+  if (s < 4.0)  return { label:'LOW',      color:'#69f0ae', tier:'P4 · LOW' };
+  if (s < 7.0)  return { label:'MEDIUM',   color:'#ffca28', tier:'P3 · MEDIUM' };
+  if (s < 9.0)  return { label:'HIGH',     color:'#ff7043', tier:'P2 · HIGH' };
+  return               { label:'CRITICAL', color:'#e8000b', tier:'P1 · CRITICAL' };
+}
+
+function buildVector() {
+  const parts = ['CVSS:3.1'];
+  ['AV','AC','PR','UI','S','C','I','A'].forEach(k=>{
+    const v = getVal(k);
+    parts.push(`${k}:${v||'_'}`);
+  });
+  ['E','RL','RC'].forEach(k=>{
+    const v = getVal(k); if(v&&v!=='X') parts.push(`${k}:${v}`);
+  });
+  ['CR','IR','AR'].forEach(k=>{
+    const v = getVal(k); if(v&&v!=='X') parts.push(`${k}:${v}`);
+  });
+  return parts.join('/');
+}
+
+
+function updateBountyTier(score) {
+  document.querySelectorAll('.bounty-table tr').forEach(r => {
+    r.classList.remove('bounty-active');
+    const min = parseFloat(r.dataset.min);
+    const max = parseFloat(r.dataset.max);
+    if (!isNaN(min) && score >= min && score <= max) {
+      r.classList.add('bounty-active');
+    }
+  });
+}
+
+
+const GAUGE_LEN = 251.2;
+
+function updateUI() {
+  const result = calculate();
+  const vec    = buildVector();
+  const comp   = isComplete();
+
+  document.getElementById('incomplete-bar').style.display = comp ? 'none' : 'block';
+  document.getElementById('vector-display').textContent = vec;
+
+  if (!result) {
+    document.getElementById('gauge-score').textContent = '—';
+    document.getElementById('gauge-sev').textContent   = 'INCOMPLETE';
+    document.getElementById('gauge-fill').style.strokeDashoffset = GAUGE_LEN;
+    document.getElementById('meter-fill').style.width = '0%';
+    ['sd-base','sd-temp','sd-expl','sd-imp'].forEach(id => document.getElementById(id).textContent = '—');
+    document.querySelectorAll('.bounty-table tr').forEach(r => r.classList.remove('bounty-active'));
+    return;
+  }
+
+  const { base, temporal, expl, impact, final } = result;
+  const sev = getSev(final);
+
+  const offset = GAUGE_LEN - (final / 10) * GAUGE_LEN;
+  const gaugeFill = document.getElementById('gauge-fill');
+  gaugeFill.style.strokeDashoffset = offset;
+  gaugeFill.style.stroke = sev.color;
+  gaugeFill.style.filter = `drop-shadow(0 0 8px ${sev.color}80)`;
+
+  const scoreEl = document.getElementById('gauge-score');
+  gsap.to(scoreEl, {
+    innerHTML: final.toFixed(1), duration: .6,
+    snap: { innerHTML: .1 }, ease: 'power2.out',
+    onUpdate() { scoreEl.style.fill = sev.color; }
+  });
+
+  document.getElementById('gauge-sev').textContent  = sev.label;
+  document.getElementById('gauge-sev').style.fill    = sev.color;
+
+  const mf = document.getElementById('meter-fill');
+  mf.style.width      = (final / 10 * 100) + '%';
+  mf.style.background = sev.color;
+  mf.style.boxShadow  = `0 0 6px ${sev.color}80`;
+
+  document.getElementById('sd-base').textContent = base.toFixed(1);
+  document.getElementById('sd-temp').textContent = temporal.toFixed(1);
+  document.getElementById('sd-expl').textContent = expl.toFixed(2);
+  document.getElementById('sd-imp').textContent  = impact.toFixed(2);
+
+  document.getElementById('sec-tip').textContent = TIPS[sev.label] || '';
+
+  updateBountyTier(final);
+
+  window._last = { vec, score: final, base, sev: sev.label, tier: sev.tier };
+}
+
+
+function updateBadges() {
+  ALL_KEYS.forEach(k => {
+    const el  = document.getElementById(`badge-${k}`);
+    const val = getVal(k);
+    if (el) el.textContent = val ? `${k}:${val}` : `${k}:_`;
+  });
+}
+
+
+document.getElementById('apply-owasp').addEventListener('click', () => {
+  const key = document.getElementById('owasp-sel').value;
+  if (!key) return;
+  const cfg = OWASP_PRESETS[key];
+  if (!cfg) return;
+
+  Object.entries(cfg).forEach(([k,v]) => {
+    if (k==='info') return;
+    const el = document.querySelector(`input[name="${k}"][value="${v}"]`);
+    if (el) el.checked = true;
+  });
+
+  const info = document.getElementById('preset-info');
+  info.innerHTML = cfg.info;
+  info.classList.add('show');
+
+  updateBadges(); updateUI();
+  toast(`Preset applied: ${key.replace(/_/g,' ').toUpperCase()}`);
+  gsap.fromTo('#calculator', { opacity:.6 }, { opacity:1, duration:.5 });
+});
+
+
+function getLog() {
+  try { return JSON.parse(localStorage.getItem('VE_log')) || []; }
+  catch(e) { return []; }
+}
+function setLog(l) { localStorage.setItem('VE_log', JSON.stringify(l)); }
+
+function renderLog() {
+  const log  = getLog();
+  const body = document.getElementById('log-body');
+  const empty= document.getElementById('log-empty');
+  body.innerHTML = '';
+
+  if (!log.length) { empty.style.display='block'; return; }
+  empty.style.display = 'none';
+
+  log.forEach(entry => {
+    const sev = getSev(parseFloat(entry.score));
+    const tr  = document.createElement('tr');
+    tr.className = 'log-row';
+    tr.innerHTML = `
+      <td class="td-time">${entry.time}</td>
+      <td class="td-vec">${entry.vec}</td>
+      <td class="td-score" style="color:${sev.color}">${parseFloat(entry.score).toFixed(1)}</td>
+      <td class="td-sev" style="color:${sev.color}">${entry.sev}</td>
+      <td class="td-sev" style="color:${sev.color};font-size:8px">${sev.tier}</td>
+      <td class="td-act">
+        <button class="row-copy" onclick="navigator.clipboard.writeText('${entry.vec}').then(()=>toast('Copied!'))">Copy</button>
+      </td>`;
+    body.appendChild(tr);
+  });
+}
+
+document.getElementById('save-audit').addEventListener('click', () => {
+  if (!window._last) { toast('⚠ Select all base metrics first', true); return; }
+  const log = getLog();
+  if (log.length && log[0].vec === window._last.vec) {
+    toast('⚠ Already saved — duplicate vector', true); return;
+  }
+  log.unshift({ time: new Date().toLocaleString(), ...window._last });
+  if (log.length > 50) log.pop();
+  setLog(log); renderLog();
+  toast('✓ Entry committed to audit log');
+});
+
+document.getElementById('clear-log-btn').addEventListener('click', () => {
+  if (!confirm('Clear all audit log entries?')) return;
+  localStorage.removeItem('VE_log'); renderLog();
+  toast('Audit log cleared');
+});
+
+document.getElementById('export-all-btn').addEventListener('click', () => {
+  const log = getLog();
+  if (!log.length) { toast('⚠ No entries to export', true); return; }
+  const blob = new Blob([JSON.stringify({ app:'VECTOR ENGINE — Bug Bounty Edition', exported:new Date().toISOString(), entries:log },null,2)], { type:'application/json' });
+  const a = Object.assign(document.createElement('a'), { href:URL.createObjectURL(blob), download:`VE_BugBounty_${Date.now()}.json` });
+  a.click();
+  toast('✓ Audit log exported');
+});
+
+
+document.getElementById('copy-vec').addEventListener('click', () => {
+  const v = document.getElementById('vector-display').textContent;
+  navigator.clipboard.writeText(v).then(() => toast('✓ Vector copied to clipboard'));
+});
+
+document.getElementById('parse-btn').addEventListener('click', openModal);
+
+document.getElementById('export-btn').addEventListener('click', () => {
+  if (!window._last) { toast('⚠ No score calculated yet', true); return; }
+  const data = { app:'VECTOR ENGINE — Bug Bounty Edition', version:'2.0', timestamp:new Date().toISOString(), ...window._last };
+  const blob = new Blob([JSON.stringify(data,null,2)], { type:'application/json' });
+  const a = Object.assign(document.createElement('a'), { href:URL.createObjectURL(blob), download:`VE_Report_${Date.now()}.json` });
+  a.click();
+  toast('✓ JSON report exported');
+});
+
+document.getElementById('reset-btn').addEventListener('click', () => {
+  document.querySelectorAll('input[type="radio"]').forEach(r => r.checked=false);
+  ['E','RL','RC'].forEach(k => { const el=document.querySelector(`input[name="${k}"][value="X"]`); if(el) el.checked=true; });
+  ['CR','IR','AR'].forEach(k => { const el=document.querySelector(`input[name="${k}"][value="X"]`); if(el) el.checked=true; });
+  document.getElementById('preset-info').classList.remove('show');
+  document.getElementById('owasp-sel').value = '';
+  document.querySelectorAll('.bounty-table tr').forEach(r => r.classList.remove('bounty-active'));
+  updateBadges(); updateUI();
+  toast('✓ All metrics reset');
+});
+
+
+function openModal()  { document.getElementById('parse-modal').classList.add('open'); document.getElementById('modal-ta').focus(); }
+function closeModal() { document.getElementById('parse-modal').classList.remove('open'); }
+function submitParse() {
+  const raw = document.getElementById('modal-ta').value.trim();
+  if (!raw.startsWith('CVSS:3')) { toast('⚠ Invalid CVSS v3.x vector', true); closeModal(); return; }
+  const parts = raw.split('/');
+  parts.forEach(p => {
+    const [k,v] = p.split(':'); if(!k||!v) return;
+    const el = document.querySelector(`input[name="${k}"][value="${v}"]`);
+    if (el) el.checked = true;
+  });
+  closeModal(); updateBadges(); updateUI();
+  toast('✓ Vector parsed and loaded');
+}
+document.getElementById('modal-close-btn').addEventListener('click', closeModal);
+document.getElementById('parse-modal').addEventListener('click', e => { if(e.target===document.getElementById('parse-modal')) closeModal(); });
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
+
+
+function toast(msg, err=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.borderLeftColor = err ? '#ff7043' : 'var(--red)';
+  t.classList.add('show');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+
+function tick() {
+  const clocks = document.querySelectorAll('#live-clock');
+  const t = new Date().toLocaleTimeString('en-US',{hour12:false});
+  clocks.forEach(c => c.textContent = t);
+}
+setInterval(tick, 1000); tick();
+
+
+document.querySelectorAll('input[type="radio"]').forEach(r => {
+  r.addEventListener('change', () => { updateBadges(); updateUI(); });
+});
+
+gsap.from('#app', { opacity:0, y:10, duration:.5, ease:'power2.out' });
+
+gsap.utils.toArray('.metric-card, .preset-section').forEach((el, i) => {
+  gsap.from(el, {
+    scrollTrigger: { trigger:el, start:'top 92%' },
+    opacity:0, x:-10, duration:.4, delay: i * .03, ease:'power2.out'
+  });
+});
+
+gsap.from('#sidebar > *', {
+  opacity:0, x:12, stagger:.08, duration:.5, ease:'power2.out', delay:.15
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+  ['E','RL','RC'].forEach(k => { const el=document.querySelector(`input[name="${k}"][value="X"]`); if(el) el.checked=true; });
+  ['CR','IR','AR'].forEach(k => { const el=document.querySelector(`input[name="${k}"][value="X"]`); if(el) el.checked=true; });
+  updateBadges(); updateUI(); renderLog();
+});
+</script>
+</body>
+</html>
